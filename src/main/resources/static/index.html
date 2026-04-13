@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水果市场销售分析系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; background-color: #f5f5f5; }
+        
+        /* Navigation */
+        .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        .navbar-content { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; }
+        .navbar-brand { font-size: 24px; font-weight: bold; color: white; padding: 15px 30px; margin-right: 20px; }
+        .nav-menu { display: flex; list-style: none; margin: 0; padding: 0; flex: 1; }
+        .nav-menu li { margin: 0; }
+        .nav-menu a { display: inline-block; color: white; text-decoration: none; padding: 18px 16px; font-size: 14px; transition: all 0.3s; cursor: pointer; }
+        .nav-menu a:hover { background: rgba(255,255,255,0.2); }
+        .nav-menu a.active { background: rgba(255,255,255,0.3); border-bottom: 3px solid white; }
+        
+        .container { max-width: 1400px; margin: 20px auto; padding: 0 20px; }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; font-size: 28px; }
+        h2 { color: #333; margin-bottom: 20px; border-bottom: 2px solid #667eea; padding-bottom: 10px; font-size: 20px; }
+        h3 { color: #555; margin-top: 20px; margin-bottom: 10px; font-size: 16px; }
+        
+        .page { display: none; }
+        .page.active { display: block; }
+        
+        /* Cards */
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .stat-card { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #667eea; margin-top: 10px; }
+        .stat-label { color: #999; font-size: 14px; margin-top: 8px; }
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        
+        /* Charts */
+        .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #667eea; color: white; font-weight: 600; }
+        tr:hover { background-color: #f9f9f9; }
+        
+        /* Forms */
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 14px; color: #666; font-weight: 500; }
+        input, select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        input:focus, select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        button { padding: 10px 18px; background-color: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
+        button:hover { background-color: #5568d3; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+        
+        /* Suggestions */
+        .suggestion-item { padding: 12px 15px; border-left: 4px solid #667eea; background: #f9f9f9; margin-bottom: 10px; border-radius: 4px; }
+        .suggestion-item:hover { background: #f0f0f0; }
+        .high-demand { color: #28a745; font-weight: bold; }
+        .low-demand { color: #dc3545; font-weight: bold; }
+        .neutral { color: #667eea; font-weight: bold; }
+        
+        /* Inventory table specific */
+        .inventory-status { padding: 6px 10px; border-radius: 3px; font-size: 12px; text-align: center; }
+        .status-normal { background: #d4edda; color: #155724; }
+        .status-warning { background: #fff3cd; color: #856404; }
+        .status-critical { background: #f8d7da; color: #721c24; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-menu { flex-wrap: wrap; }
+            .charts { grid-template-columns: 1fr; }
+            .card-grid { grid-template-columns: 1fr 1fr; }
+            .controls { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <div class="navbar-brand">🍎 水果市场</div>
+            <ul class="nav-menu">
+                <li><a onclick="switchPage('dashboard')" class="nav-link active">📊 仪表盘</a></li>
+                <li><a onclick="switchPage('sales')" class="nav-link">📝 销售管理</a></li>
+                <li><a onclick="switchPage('statistics')" class="nav-link">📈 销售统计</a></li>
+                <li><a onclick="switchPage('inventory')" class="nav-link">📦 库存管理</a></li>
+                <li><a onclick="switchPage('profit')" class="nav-link">💰 利润分析</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- ==== PAGE: Dashboard ==== -->
+        <div id="dashboard" class="page active">
+            <h1>📊 仪表盘</h1>
+            
+            <div class="card-grid" id="dashboardStats">
+                <div class="stat-card">
+                    <div style="font-size: 24px;">📈</div>
+                    <div class="stat-label">总销售额</div>
+                    <div class="stat-value" id="totalRevenue">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 24px;">📊</div>
+                    <div class="stat-label">销售笔数</div>
+                    <div class="stat-value" id="totalTransactions">0</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 24px;">💰</div>
+                    <div class="stat-label">平均交易额</div>
+                    <div class="stat-value" id="avgTransaction">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 24px;">🎯</div>
+                    <div class="stat-label">预估利润</div>
+                    <div class="stat-value" id="totalProfit">¥0.00</div>
+                </div>
+            </div>
+
+            <div class="charts">
+                <div class="chart-container">
+                    <h3>各水果销售额</h3>
+                    <canvas id="dashboardTypeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>分时段销售趋势</h3>
+                    <canvas id="dashboardHourChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>进货建议</h2>
+                <div id="dashboardSuggestions"></div>
+            </div>
+        </div>
+
+        <!-- ==== PAGE: Sales Management ==== -->
+        <div id="sales" class="page">
+            <h1>📝 销售管理</h1>
+            
+            <div class="card">
+                <h2>添加销售记录</h2>
+                <div class="controls" style="flex-direction: row; flex-wrap: wrap; margin: 0;">
+                    <div class="form-group">
+                        <label>水果种类</label>
+                        <select id="fruitType">
+                            <option value="苹果">苹果</option>
+                            <option value="香蕉">香蕉</option>
+                            <option value="橙子">橙子</option>
+                            <option value="葡萄">葡萄</option>
+                            <option value="西瓜">西瓜</option>
+                            <option value="芒果">芒果</option>
+                            <option value="菠萝">菠萝</option>
+                            <option value="草莓">草莓</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>重量 (kg)</label>
+                        <input type="number" id="quantity" step="0.1" value="1.0">
+                    </div>
+                    <div class="form-group">
+                        <label>单价 (元/kg)</label>
+                        <input type="number" id="price" step="0.1" value="5.0">
+                    </div>
+                    <button onclick="addSale()">✓ 添加销售记录</button>
+                    <button class="secondary" onclick="generateData()">⚡ 一键生成50条数据</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>最近销售记录</h2>
+                <table id="salesTable">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>水果种类</th>
+                            <th>重量 (kg)</th>
+                            <th>单价 (元/kg)</th>
+                            <th>总额 (元)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==== PAGE: Statistics ==== -->
+        <div id="statistics" class="page">
+            <h1>📈 销售统计</h1>
+            
+            <div class="charts">
+                <div class="chart-container">
+                    <h3>日销售统计</h3>
+                    <canvas id="dailyStatsChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>周销售统计</h3>
+                    <canvas id="weeklyStatsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>按水果类型统计</h2>
+                <table id="typeStatsTable">
+                    <thead>
+                        <tr>
+                            <th>水果种类</th>
+                            <th>销售总额 (元)</th>
+                            <th>销售笔数</th>
+                            <th>平均单价 (元/kg)</th>
+                            <th>销售数量 (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==== PAGE: Inventory ==== -->
+        <div id="inventory" class="page">
+            <h1>📦 库存管理</h1>
+            
+            <div class="card">
+                <h2>当前库存</h2>
+                <table id="inventoryTable">
+                    <thead>
+                        <tr>
+                            <th>水果种类</th>
+                            <th>当前库存 (kg)</th>
+                            <th>最小库存 (kg)</th>
+                            <th>最大容量 (kg)</th>
+                            <th>库存状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ==== PAGE: Profit Analysis ==== -->
+        <div id="profit" class="page">
+            <h1>💰 利润分析</h1>
+            
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div style="font-size: 24px;">📊</div>
+                    <div class="stat-label">总收入</div>
+                    <div class="stat-value" id="profitTotalRevenue">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 24px;">📉</div>
+                    <div class="stat-label">预估成本</div>
+                    <div class="stat-value" id="profitTotalCost">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 24px;">💰</div>
+                    <div class="stat-label">预估利润</div>
+                    <div class="stat-value" id="profitTotalProfit">¥0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 24px;">📈</div>
+                    <div class="stat-label">利润率</div>
+                    <div class="stat-value" id="profitMargin">0%</div>
+                </div>
+            </div>
+
+            <div class="charts">
+                <div class="chart-container">
+                    <h3>各水果利润分布</h3>
+                    <canvas id="profitByTypeChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>各水果利润率</h3>
+                    <canvas id="profitMarginChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>各水果详细利润分析</h2>
+                <table id="profitTable">
+                    <thead>
+                        <tr>
+                            <th>水果种类</th>
+                            <th>销售总额 (元)</th>
+                            <th>预估成本 (元)</th>
+                            <th>预估利润 (元)</th>
+                            <th>利润率 (%)</th>
+                            <th>销售笔数</th>
+                            <th>平均单价 (元/kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let typeChart = null, hourChart = null, dailyChart = null, weeklyChart = null;
+        let profitTypeChart = null, profitMarginChart = null;
+
+        // Page switching function
+        function switchPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+            
+            // Show selected page
+            document.getElementById(pageName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load data for the page
+            if (pageName === 'dashboard') {
+                loadDashboard();
+            } else if (pageName === 'sales') {
+                loadSalesPage();
+            } else if (pageName === 'statistics') {
+                loadStatistics();
+            } else if (pageName === 'inventory') {
+                loadInventory();
+            } else if (pageName === 'profit') {
+                loadProfit();
+            }
+        }
+
+        // ===== DASHBOARD PAGE =====
+        async function loadDashboard() {
+            try {
+                const [overallProfit, typeChart, hourChart, suggestions] = await Promise.all([
+                    fetch('/api/sales/profit/overall').then(r => r.json()),
+                    fetch('/api/sales/by-type').then(r => r.json()),
+                    fetch('/api/sales/by-hour').then(r => r.json()),
+                    fetch('/api/sales/suggestions').then(r => r.json())
+                ]);
+
+                // Update stats
+                document.getElementById('totalRevenue').textContent = '¥' + overallProfit.totalRevenue.toFixed(2);
+                document.getElementById('totalTransactions').textContent = overallProfit.totalTransactions;
+                document.getElementById('avgTransaction').textContent = '¥' + overallProfit.avgTransactionValue.toFixed(2);
+                document.getElementById('totalProfit').textContent = '¥' + overallProfit.estimatedProfit.toFixed(2);
+
+                renderDashboardCharts(typeChart, hourChart);
+                renderDashboardSuggestions(suggestions);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function renderDashboardCharts(byType, byHour) {
+            if (typeChart) typeChart.destroy();
+            if (hourChart) hourChart.destroy();
+
+            const ctxType = document.getElementById('dashboardTypeChart');
+            typeChart = new Chart(ctxType, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(byType),
+                    datasets: [{
+                        data: Object.values(byType),
+                        backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140', '#30b0fe']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            const ctxHour = document.getElementById('dashboardHourChart');
+            const sortedHours = Object.keys(byHour).sort((a, b) => a - b);
+            hourChart = new Chart(ctxHour, {
+                type: 'line',
+                data: {
+                    labels: sortedHours.map(h => h + ':00'),
+                    datasets: [{
+                        label: '销售总额 (元)',
+                        data: sortedHours.map(h => byHour[h]),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, plugins: { title: { display: true, text: '分时段销售趋势' } } }
+            });
+        }
+
+        function renderDashboardSuggestions(suggestions) {
+            const container = document.getElementById('dashboardSuggestions');
+            container.innerHTML = '';
+            for (const [fruit, advice] of Object.entries(suggestions)) {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                const cssClass = advice.includes('高需求') ? 'high-demand' : advice.includes('低需求') ? 'low-demand' : 'neutral';
+                div.innerHTML = `<strong>${fruit}:</strong> <span class="${cssClass}">${advice}</span>`;
+                container.appendChild(div);
+            }
+        }
+
+        // ===== SALES PAGE =====
+        async function loadSalesPage() {
+            try {
+                const sales = await fetch('/api/sales').then(r => r.json());
+                renderSalesTable(sales);
+            } catch (error) {
+                console.error('Error loading sales:', error);
+            }
+        }
+
+        async function addSale() {
+            const fruitType = document.getElementById('fruitType').value;
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            const pricePerKg = parseFloat(document.getElementById('price').value);
+
+            if (!fruitType || isNaN(quantity) || isNaN(pricePerKg)) {
+                alert('请填写完整的销售信息');
+                return;
+            }
+
+            try {
+                await fetch('/api/sales/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fruitType, quantity, pricePerKg })
+                });
+                alert('添加成功！');
+                loadSalesPage();
+                loadDashboard();
+            } catch (error) {
+                console.error('Error adding sale:', error);
+                alert('添加失败');
+            }
+        }
+
+        async function generateData() {
+            if (!confirm('确定要生成50条随机数据吗？')) return;
+            try {
+                await fetch('/api/sales/generate', { method: 'POST' });
+                alert('生成成功！');
+                loadSalesPage();
+                loadDashboard();
+            } catch (error) {
+                console.error('Error generating data:', error);
+                alert('生成失败');
+            }
+        }
+
+        function renderSalesTable(sales) {
+            const tbody = document.querySelector('#salesTable tbody');
+            tbody.innerHTML = sales.slice(0, 20).map(sale => `
+                <tr>
+                    <td>${new Date(sale.saleTime).toLocaleString('zh-CN')}</td>
+                    <td>${sale.fruitType}</td>
+                    <td>${sale.quantity.toFixed(2)}</td>
+                    <td>¥${sale.pricePerKg.toFixed(2)}</td>
+                    <td>¥${sale.totalAmount.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ===== STATISTICS PAGE =====
+        async function loadStatistics() {
+            try {
+                const [dailyStats, weeklyStats, typeStats] = await Promise.all([
+                    fetch('/api/sales/stats/daily').then(r => r.json()),
+                    fetch('/api/sales/stats/weekly').then(r => r.json()),
+                    fetch('/api/sales/by-type').then(r => r.json())
+                ]);
+
+                renderStatisticsCharts(dailyStats, weeklyStats);
+                renderTypeStatsTable(typeStats);
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+            }
+        }
+
+        function renderStatisticsCharts(daily, weekly) {
+            if (dailyChart) dailyChart.destroy();
+            if (weeklyChart) weeklyChart.destroy();
+
+            const ctxDaily = document.getElementById('dailyStatsChart');
+            const dailyDates = Object.keys(daily).slice(-7);
+            dailyChart = new Chart(ctxDaily, {
+                type: 'bar',
+                data: {
+                    labels: dailyDates,
+                    datasets: [{
+                        label: '日销售额 (元)',
+                        data: dailyDates.map(d => daily[d]),
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            const ctxWeekly = document.getElementById('weeklyStatsChart');
+            weeklyChart = new Chart(ctxWeekly, {
+                type: 'line',
+                data: {
+                    labels: Object.keys(weekly),
+                    datasets: [{
+                        label: '周销售额 (元)',
+                        data: Object.values(weekly),
+                        borderColor: '#764ba2',
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        function renderTypeStatsTable(typeData) {
+            const tbody = document.querySelector('#typeStatsTable tbody');
+            const sales = Object.values(typeData);
+            
+            // Get detailed data from profit endpoint
+            fetch('/api/sales/profit/by-type').then(r => r.json()).then(profitData => {
+                tbody.innerHTML = Object.entries(typeData).map(([fruit, revenue]) => {
+                    const detail = profitData[fruit] || {};
+                    return `
+                        <tr>
+                            <td>${fruit}</td>
+                            <td>¥${revenue.toFixed(2)}</td>
+                            <td>${detail.salesCount || 0}</td>
+                            <td>¥${(detail.avgPrice || 0).toFixed(2)}</td>
+                            <td>${(detail.avgQuantity || 0).toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            });
+        }
+
+        // ===== INVENTORY PAGE =====
+        async function loadInventory() {
+            try {
+                const inventory = await fetch('/api/sales/inventory').then(r => r.json());
+                renderInventoryTable(inventory);
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+            }
+        }
+
+        function renderInventoryTable(inventory) {
+            const tbody = document.querySelector('#inventoryTable tbody');
+            tbody.innerHTML = inventory.map(item => {
+                let status = 'status-normal';
+                let statusText = '正常';
+                if (item.quantity < item.minThreshold) {
+                    status = 'status-critical';
+                    statusText = '紧急补货';
+                } else if (item.quantity < item.minThreshold * 1.5) {
+                    status = 'status-warning';
+                    statusText = '建议补货';
+                }
+                return `
+                    <tr>
+                        <td>${item.fruitType}</td>
+                        <td>${item.quantity.toFixed(1)}</td>
+                        <td>${item.minThreshold.toFixed(1)}</td>
+                        <td>${item.maxCapacity.toFixed(1)}</td>
+                        <td><span class="inventory-status ${status}">${statusText}</span></td>
+                        <td><button class="success" onclick="updateInventory('${item.fruitType}')">更新</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateInventory(fruitType) {
+            const newQty = prompt(`输入 ${fruitType} 的新库存数量 (kg):`);
+            if (newQty !== null && !isNaN(newQty)) {
+                fetch('/api/sales/inventory/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fruitType, quantity: parseFloat(newQty) })
+                }).then(() => {
+                    alert('更新成功！');
+                    loadInventory();
+                });
+            }
+        }
+
+        // ===== PROFIT PAGE =====
+        async function loadProfit() {
+            try {
+                const [overallProfit, profitByType] = await Promise.all([
+                    fetch('/api/sales/profit/overall').then(r => r.json()),
+                    fetch('/api/sales/profit/by-type').then(r => r.json())
+                ]);
+
+                updateProfitStats(overallProfit);
+                renderProfitCharts(profitByType);
+                renderProfitTable(profitByType);
+            } catch (error) {
+                console.error('Error loading profit data:', error);
+            }
+        }
+
+        function updateProfitStats(stats) {
+            document.getElementById('profitTotalRevenue').textContent = '¥' + stats.totalRevenue.toFixed(2);
+            document.getElementById('profitTotalCost').textContent = '¥' + stats.estimatedCost.toFixed(2);
+            document.getElementById('profitTotalProfit').textContent = '¥' + stats.estimatedProfit.toFixed(2);
+            document.getElementById('profitMargin').textContent = stats.profitMargin.toFixed(1) + '%';
+        }
+
+        function renderProfitCharts(profitByType) {
+            if (profitTypeChart) profitTypeChart.destroy();
+            if (profitMarginChart) profitMarginChart.destroy();
+
+            const fruits = Object.keys(profitByType);
+            const profits = fruits.map(f => profitByType[f].estimatedProfit);
+            const margins = fruits.map(f => profitByType[f].profitMargin);
+
+            const ctxProfit = document.getElementById('profitByTypeChart');
+            profitTypeChart = new Chart(ctxProfit, {
+                type: 'bar',
+                data: {
+                    labels: fruits,
+                    datasets: [{
+                        label: '预估利润 (元)',
+                        data: profits,
+                        backgroundColor: '#28a745'
+                    }]
+                },
+                options: { responsive: true }
+            });
+
+            const ctxMargin = document.getElementById('profitMarginChart');
+            profitMarginChart = new Chart(ctxMargin, {
+                type: 'bar',
+                data: {
+                    labels: fruits,
+                    datasets: [{
+                        label: '利润率 (%)',
+                        data: margins,
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: { responsive: true, scales: { y: { max: 100 } } }
+            });
+        }
+
+        function renderProfitTable(profitByType) {
+            const tbody = document.querySelector('#profitTable tbody');
+            tbody.innerHTML = Object.entries(profitByType).map(([fruit, data]) => `
+                <tr>
+                    <td>${fruit}</td>
+                    <td>¥${data.revenue.toFixed(2)}</td>
+                    <td>¥${data.estimatedCost.toFixed(2)}</td>
+                    <td>¥${data.estimatedProfit.toFixed(2)}</td>
+                    <td>${data.profitMargin.toFixed(1)}%</td>
+                    <td>${data.salesCount}</td>
+                    <td>¥${data.avgPrice.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Load initial dashboard
+        window.addEventListener('load', () => {
+            loadDashboard();
+        });
+    </script>
+</body>
+</html>
