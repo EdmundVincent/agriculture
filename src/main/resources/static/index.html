@@ -87,10 +87,16 @@
             <ul class="nav-menu">
                 <li><a onclick="switchPage('dashboard')" class="nav-link active">📊 仪表盘</a></li>
                 <li><a onclick="switchPage('sales')" class="nav-link">📝 销售管理</a></li>
-                <li><a onclick="switchPage('statistics')" class="nav-link">📈 销售统计</a></li>
-                <li><a onclick="switchPage('inventory')" class="nav-link">📦 库存管理</a></li>
-                <li><a onclick="switchPage('profit')" class="nav-link">💰 利润分析</a></li>
+                <li><a onclick="switchPage('statistics')" class="nav-link" id="nav-statistics">📈 销售统计</a></li>
+                <li><a onclick="switchPage('inventory')" class="nav-link" id="nav-inventory">📦 库存管理</a></li>
+                <li><a onclick="switchPage('profit')" class="nav-link" id="nav-profit">💰 利润分析</a></li>
             </ul>
+            <div style="padding: 0 20px; color: white; display: flex; align-items: center; gap: 15px;">
+                <span id="username-display" style="font-size: 14px;"></span>
+                <form action="/logout" method="post" style="display: inline;">
+                    <button type="submit" style="background: rgba(255,255,255,0.2); padding: 5px 12px; font-size: 12px;">注销</button>
+                </form>
+            </div>
         </div>
     </nav>
 
@@ -661,8 +667,45 @@
             `).join('');
         }
 
+        // Check user role and adjust UI
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (!response.ok || response.url.includes('/login')) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const user = await response.json();
+                document.getElementById('username-display').textContent = 
+                    `欢迎，${user.username} (${user.roles.includes('ROLE_ADMIN') ? '管理员' : '普通用户'})`;
+                
+                // If not admin, hide some features
+                if (!user.roles.includes('ROLE_ADMIN')) {
+                    // Hide nav items
+                    document.getElementById('nav-statistics').parentElement.style.display = 'none';
+                    document.getElementById('nav-inventory').parentElement.style.display = 'none';
+                    document.getElementById('nav-profit').parentElement.style.display = 'none';
+                    
+                    // Hide admin buttons on sales page
+                    const generateBtn = document.querySelector('button[onclick="generateData()"]');
+                    if (generateBtn) generateBtn.style.display = 'none';
+
+                    // Hide sensitive dashboard info
+                    const profitCard = document.getElementById('totalProfit')?.parentElement;
+                    if (profitCard) profitCard.style.display = 'none';
+                    
+                    // Optionally hide suggestions if they are considered "admin"
+                    // document.getElementById('dashboardSuggestions').parentElement.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/login';
+            }
+        }
+
         // Load initial dashboard
         window.addEventListener('load', () => {
+            checkAuth();
             loadDashboard();
         });
     </script>
